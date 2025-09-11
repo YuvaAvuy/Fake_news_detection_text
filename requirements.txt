@@ -1,4 +1,5 @@
 streamlit
-transformers
-torch
-sentencepiece
+openai
+requests
+beautifulsoup4
+lxml
