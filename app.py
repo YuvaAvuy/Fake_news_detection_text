@@ -1,17 +1,19 @@
+# app.py
 import streamlit as st
 from ensemble import ensemble_predict
 
 st.set_page_config(page_title="Fake News Ensemble Detector", layout="centered")
 st.title("📰 Fake News Ensemble Detector")
-st.write("Ultra-accurate fake news detection using 5 powerful transformer models.")
 
-text = st.text_area("Enter news text:")
+st.write("Enter a news headline or paragraph to check if it's **real** or **fake**.")
 
-if st.button("Classify"):
-    if text.strip() == "":
-        st.warning("Please enter news text.")
+text = st.text_area("News Text", height=150)
+
+if st.button("Analyze"):
+    if text.strip():
+        with st.spinner("Analyzing with multiple AI models..."):
+            label, confidence = ensemble_predict(text)
+        st.success(f"**Prediction:** {label}")
+        st.info(f"**Confidence:** {confidence}%")
     else:
-        label, prob = ensemble_predict(text)
-        icon = "🟩" if label=="Real" else "🟥"
-        st.subheader(f"{icon} {label} News")
-        st.write(f"Confidence: **{(prob if prob>0.5 else 1-prob)*100:.2f}%**")
+        st.warning("Please enter some text to analyze.")
