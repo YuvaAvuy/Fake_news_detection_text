@@ -1,74 +1,35 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-import openai
-import re
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
-# ==============================
-# Set your OpenAI API Key here
-# ==============================
-openai.api_key = "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"  # Replace with your key
+# Load the model
+@st.cache_resource
+def load_model():
+    model_name = "Pulk17/Fake-News-Detection"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    return tokenizer, model
 
-# ==============================
-# Web Scraping Function
-# ==============================
-def scrape_url(url):
-    try:
-        res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        soup = BeautifulSoup(res.text, "html.parser")
-        # Get title and paragraphs
-        title = soup.title.string if soup.title else ""
-        paragraphs = [p.get_text().strip() for p in soup.find_all("p") if len(p.get_text()) > 20]
-        text = title + "\n\n" + "\n".join(paragraphs)
-        return text
-    except:
-        return None
+tokenizer, model = load_model()
 
-# ==============================
-# ChatGPT Prediction Function
-# ==============================
-def chatgpt_predict(text):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # or "gpt-3.5-turbo"
-            messages=[
-                {"role": "system", "content": "You are a fact-checking assistant."},
-                {"role": "user", "content": f"Classify the following news as REAL or FAKE, and explain briefly why:\n\n{text}"}
-            ],
-            temperature=0
-        )
-        result = response['choices'][0]['message']['content']
-        return result
-    except Exception as e:
-        return f"Error: {e}"
+# Streamlit app
+st.title("Fake News Detector")
+st.write("Paste a news headline or article below to check if it's REAL or FAKE:")
 
-# ==============================
-# Streamlit UI
-# ==============================
-st.set_page_config(page_title="📰Fake News Detector", layout="wide")
-st.title("📰 Fake News Detection App")
+text_input = st.text_area("Enter news text here", height=150)
 
-input_type = st.radio("Choose Input Type", ["Text", "URL"])
-
-user_input = ""
-
-if input_type == "Text":
-    user_input = st.text_area("Enter news text here", height=200)
-elif input_type == "URL":
-    page_url = st.text_input("Enter news article URL")
-    if page_url:
-        scraped_text = scrape_url(page_url)
-        if scraped_text:
-            st.text_area("Extracted Article", scraped_text, height=300)
-            user_input = scraped_text
-        else:
-            st.warning("⚠️ Could not scrape the URL.")
-
-if st.button("Analyze"):
-    if not user_input.strip():
-        st.warning("Please enter valid text or URL.")
+if st.button("Check Authenticity"):
+    if text_input.strip() == "":
+        st.warning("Please enter some news text.")
     else:
-        with st.spinner("Analyzing..."):
-            prediction = chatgpt_predict(user_input)
-            st.subheader("Prediction & Explanation:")
-            st.write(prediction)
+        inputs = tokenizer(text_input, return_tensors="pt", truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            probs = torch.nn.functional.softmax(outputs.logits, dim=1)
+            label = torch.argmax(probs, dim=1).item()
+            confidence = probs[0, label].item()
+            result = "REAL" if label == 1 else "FAKE"
+            st.subheader(f"Prediction: {result}")
+            st.write(f"Confidence: {confidence*100:.2f}%")
+
+st.caption("Model: Pulk17/Fake-News-Detection [BERT-base-uncased]")
