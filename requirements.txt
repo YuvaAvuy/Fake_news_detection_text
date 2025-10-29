@@ -1,6 +1,7 @@
-streamlit
-openai
-requests
-beautifulsoup4
-lxml
-sentencepiece
+streamlit>=1.25.0
+transformers>=4.37.0
+torch>=2.0.0
+sentencepiece  # needed for some tokenizers
+protobuf<4.0.0  # Streamlit compatibility
+huggingface-hub>=0.20.0
+numpy>=1.23.0
